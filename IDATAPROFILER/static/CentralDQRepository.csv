@@ -1,0 +1,18 @@
+﻿DQ_RuleId,DQ_Rule,DQ_Dimension,Category,Priority,DQ_Rule_Description
+DQ001,Unallowable Keywords/ Characters,Validity,Corrective,1,Checks for presence of Unallowable Keywords/ Characters
+DQ002,Null/ Blank,Completeness,Preventive,2,Checks for presence of Null/ Blank values
+DQ003,Value Check,Validity,Corrective,2,Performs value comparison check
+DQ004,Length Check,Validity,Corrective,3,Performs length comparison check
+DQ005,Email Validity,Validity,Corrective,2,Checks if Email conforms to standard format
+DQ006,Duplicate Check,Uniqueness,Detective,2,Checks for duplicate data using single or composite columns
+DQ007,Leading or Trailing characters,Validity,Corrective,4,Checks for presence of leading and/or trailing characters
+DQ008,Cross Column Compare,Consistency,Detective,1,Performs value comparison check between two columns
+DQ009,Substring Check,Validity,Detective,2,Check for the presence of specified substring in a column
+DQ010,Date Check - Weekend,Validity,Preventive,1,Check if Date is on a Weekend or not
+DQ011,Date Check - Future Date,Validity,Preventive,1,Check if Date is in Future or not
+DQ012,Date Check - Weekday,Validity,Preventive,1,Check if Date is on a weekday or not
+DQ013,Date Check - Non Future Date,Validity,Preventive,1,Check if Date is in Past or not
+DQ014,Allowable Keywords,Validity,Preventive,1,Check for presence of specified keywords
+DQ015,Pattern Check,Validity,Preventive,1,Compares the pattern or format against the specified pattern
+DQ016,Date Validity Check,Validity,Preventive,1,Checks whether date is valid or not (If the input column value is convertible to valid date then PASS else FAIL)
+DQ017,Cardinality Check,Validity,Detective,1,Checks the Cardinality between two columns

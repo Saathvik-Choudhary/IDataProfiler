@@ -1,0 +1,4 @@
+DQ_RuleId,DQ_Rule,DQ_Dimension,Category,Priority,DQ_Rule_Description
+CT001,Lookup Column Compare,Accuracy,Corrective,1,Checks for presence/ absence of column in reference source
+CT002,Lookup Substring Check,Accuracy,Detective,2,Checks for presence of column as substring in reference source
+CT003,Join Key Column Compare,Accuracy,Detective,1,Checks for equality/ inequality between 2 columns of different sources based on a key
