@@ -1,0 +1,227 @@
++---------------------------------------------------------------------------------+
+|                              Phase 1                                           |
+|  Data Profiling, Cleaning & Baseline Establishment                              |
+|  - Automated profiling, sampling, column stats, initial cleansing               |
++---------------------------------------------------------------------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------------+
+|                              Phase 2                                           |
+|  Data Quality Rules Engine & Continuous Monitoring                              |
+|  - Rule repository, GE/Deequ checks, orchestration, alerts                      |
++---------------------------------------------------------------------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------------+
+|                              Phase 3                                           |
+|  Data Governance, Ownership & Metadata Integration                              |
+|  - Catalog, lineage (OpenLineage), stewards, policies                           |
++---------------------------------------------------------------------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------------+
+|                              Phase 4                                           |
+|  Data Remediation, Master Data & Reference Data Alignment                       |
+|  - Remediation hub, MDM integration, root-cause fixes                           |
++---------------------------------------------------------------------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------------+
+|                              Phase 5                                           |
+|  Data Quality Observability & Trust Analytics                                   |
+|  - Historical metrics store, trust scores, executive dashboards                 |
++---------------------------------------------------------------------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------------+
+|                              Phase 6                                           |
+|  Predictive & Autonomous Data Quality                                           |
+|  - ML-driven anomaly detection, rule recommendation, self-service               |
++---------------------------------------------------------------------------------+
+
+
+
+
+
+
+# Enterprise Data Quality Architecture & Recommended Tech Stack — Shell (Hybrid)
+
+> This document maps the 6-phase DQ roadmap to a concrete architecture and recommended tech stack tailored for a hybrid Shell environment (on-prem + cloud). It includes diagrams, components, data flows, and deployment notes.
+
+---
+
+## 1. High-level architecture (ASCII)
+
+```
+                +----------------+      +--------------------+
+                |  Operational   |      |  External / Third- |
+                |  Systems      |      |  party Reference    |
+                | (ERP SAP, PI,  |      |  Data (Geo, Postal, |
+                |  SCADA, Hist)  |      |  Master lists)      |
+                +-------+--------+      +---------+----------+
+                        |                         |
+                        | Ingest (batch / stream)|
+                        v                         v
+      +----------------------------- Messaging & Ingestion Layer ---------------------------+
+      |  Kafka / Event Hubs / MQ  <-------------------------------------------->  File Ingest (SFTP, APIs)
+      +----------------------------------+-----------------------------------------------+
+                                         |
+                                         v
+                      +-------------------------------------------+
+                      |  Processing & Transformation Layer       |
+                      |  (Spark / Databricks / Flink / Snowpark) |
+                      +-----------------+-------------------------+
+                                        / \      
+                       Batch jobs ----/   \---- Streaming jobs
+                                     /       \
+            +----------------------+         +----------------------+
+            |  DQ Profiling Engine  |         |  Real-time DQ Checks |
+            | (Great Expectations,  |         | (Kafka Streams,      |
+            |  custom profiling)    |         |  Flink, Spark Structured)
+            +-----------+----------+         +-----------+----------+
+                        |                                |
+                        v                                v
+               +----------------+                +-------------------+
+               |  Metadata &    |<---------------|  Lineage (OpenLineage)
+               |  Catalog       |                |  (Marquez or vendor)
+               | (Collibra /    |                +-------------------+
+               |  Purview / Alation)
+               +--------+-------+
+                        |
+                        v
+               +---------------------------+
+               |  Data Quality Metrics DB  |
+               |  (Postgres / Elastic /    |
+               |   Timescale)              |
+               +------------+--------------+
+                            |
+                            v
+                   +---------------------------+
+                   | Monitoring & Observability|
+                   | (Grafana / Superset / BI) |
+                   +------+--------------------+
+                          | Alerts & Tickets
+                          v
+                  +-----------------------------+
+                  |  Remediation Hub / MDM      |
+                  | (ServiceNow, Collibra MDM)  |
+                  +-----------------------------+
+```
+
+---
+
+## 2. Component-by-component: role & recommended tech
+
+### Ingestion & Messaging
+
+* **Purpose:** Bring data from OT/IT systems into the DQ platform reliably.
+* **Recommended:** Apache Kafka (on-prem clusters / Confluent / MS Event Hubs for Azure hybrid). Use connectors (Debezium for CDC, Kafka Connect).
+* **Why:** High-throughput, durable streaming; supports both near-real-time and micro-batch patterns.
+
+### Processing & Transformation
+
+* **Purpose:** Run profiling, cleansing, transformations, and enrichment.
+* **Recommended:** Apache Spark (standalone on-prem or Databricks/Azure Databricks in cloud) for batch; Flink or Spark Structured Streaming for streaming. Use dbt (where SQL-first transformation fits) for transformation versioning.
+* **Why:** Scales to Shell-size data volumes; unified batch/stream processing.
+
+### Data Quality (Profiling & Validation)
+
+* **Purpose:** Profile datasets, run validations, maintain expectations.
+* **Recommended:** Great Expectations (open-source) as the primary DQ framework; extend with custom profiling scripts in Spark for scale.
+* **Why:** Flexible expectation-based rules, integration with pipelines and docs.
+
+### Lineage & Metadata
+
+* **Purpose:** Trace dataset origins, impacts, and drift.
+* **Recommended:** OpenLineage standard & implementation (Marquez) + enterprise metadata catalog (Collibra for hybrid/multi-cloud or Azure Purview for Azure-heavy).
+* **Why:** Open standard ensures instrumentation across tools; Collibra/Purview provide governance UI, policy enforcement.
+
+### Observability & Metrics
+
+* **Purpose:** Store and visualize DQ metrics and alerts.
+* **Recommended:** Postgres or TimescaleDB for metrics, ElasticSearch for logs, Grafana / Superset / PowerBI for dashboards. Use Alertmanager / PagerDuty / ServiceNow for notifications.
+
+### Remediation & MDM
+
+* **Purpose:** Human-in-the-loop remediation and master record management.
+* **Recommended:** Collibra MDM or IBM / Informatica MDM for enterprise master data; integrate a remediation portal (ServiceNow or custom React app) for steward workflows.
+
+### Orchestration
+
+* **Purpose:** Schedule and manage DQ pipelines and jobs.
+* **Recommended:** Apache Airflow (on-prem/ Astronomer-managed / MWAA) or Prefect for hybrid orchestration.
+
+### Security & Access
+
+* **Identity:** Integrate with corporate SSO (Azure AD, LDAP).
+* **Encryption:** TLS in transit, KMIP/HSM for at-rest keys.
+* **Policy enforcement:** RBAC in catalog, data masking in pipelines for PII (dynamic tokenization).
+
+---
+
+## 3. Phase-to-architecture mapping (what happens in each phase)
+
+* **Phase 1 (Profiling & Cleaning):** Kick off profiling jobs (Spark) that write stats into DQ metrics DB. Run Great Expectations suites as part of ETL. Output: cleaned datasets in a curated zone.
+
+* **Phase 2 (Rules & Monitoring):** Author rules in Great Expectations + rule repository. Orchestrate runs via Airflow. Stream rule failures into observability and alerting.
+
+* **Phase 3 (Governance & Metadata):** Instrument pipelines with OpenLineage; surface datasets in Collibra/Purview; attach business glossary and owners.
+
+* **Phase 4 (Remediation & MDM):** Integrate remediation portal with MDM; authoritative records updated; automate validation at source where possible.
+
+* **Phase 5 (Observability & Trust Analytics):** Aggregate historical DQ metrics into analytics DB; compute trust scores and impact reports; dashboards for leadership.
+
+* **Phase 6 (Predictive & Autonomous):** Deploy ML models (Spark ML/Databricks MLflow) to predict drift and recommend rules; implement automatic remediation for low-risk fixes.
+
+---
+
+## 4. Deployment & Hybrid considerations for Shell
+
+* **On-prem sensitive systems (SCADA, Historians):** Keep ingestion connectors and Kafka near OT networks; run edge-processing nodes for initial filtering.
+* **Cloud workloads (analytics, ML):** Use Azure Databricks / AWS EMR for heavy processing and ML, connected securely via private link/VPN.
+* **Data residency & compliance:** Enforce dataset metadata flags for residency; use Purview/Collibra policies to restrict movement.
+* **Connectivity:** Use secure VPN / ExpressRoute / Direct Connect and service endpoints; ensure Kafka MirrorMaker or Confluent Replicator for cross-site replication.
+
+---
+
+## 5. Security, Governance & Compliance controls
+
+* **Authorization:** RBAC in metadata catalog and DQ UI; least privilege in data stores.
+* **Data Lineage & Audit:** All DQ runs logged with run-id, user, timestamp. Store immutable audit trail for compliance.
+* **PII handling:** Classify via catalog; apply dynamic masking in pipelines; log access and transformations.
+* **Change management:** CI/CD for DQ rules and pipelines; peer review + approvals for production rule changes.
+
+---
+
+## 6. Implementation milestones & quick wins (90-day plan)
+
+**Weeks 0–2:** Finalize scope; select pilot domains (e.g., Asset Master, Production Data) & owners.
+**Weeks 2–6:** Build connectors and run initial profiling (Spark + sampling); store profiling results in Postgres.
+**Weeks 6–10:** Implement Great Expectations tests for pilot datasets; create Airflow DAGs to run DQ checks nightly.
+**Weeks 10–14:** Stand up metadata catalog (Collibra/Purview) and integrate lineage via OpenLineage.
+**Weeks 14–20:** Build remediation workflows and MDM integration for pilot.
+
+---
+
+## 7. Cost & sizing considerations (high level)
+
+* **Compute:** Spark clusters sized by ingestion rates and historical processing windows. Consider spot/low-cost nodes for non-critical profiling.
+* **Storage:** Separate raw, clean, curated zones. Estimate growth and retention (hot vs. cold tiers).
+* **Licensing:** Collibra / Databricks / Confluent licensing vs open-source operation costs and support.
+
+---
+
+## 8. Appendix: Example technologies & alternatives
+
+* **Streaming / Ingest:** Kafka / Confluent, Azure Event Hubs, RabbitMQ
+* **Batch & Stream processing:** Apache Spark, Flink, Databricks, Snowpark
+* **DQ Framework:** Great Expectations, Deequ (for Spark), custom rules engine
+* **Lineage:** OpenLineage + Marquez, Amundsen lineage
+* **Catalog:** Collibra, Azure Purview, Alation
+* **Orchestration:** Airflow, Prefect, Azure Data Factory
+* **Observability:** Grafana, Superset, Power BI, TimescaleDB
+* **MDM / Remediation:** Collibra MDM, Informatica, IBM MDM
+
+---
+
+*End of architecture document.*

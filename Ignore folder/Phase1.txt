@@ -1,0 +1,611 @@
+Phase 1 — Data Profiling Foundation
+🎯 Objective:
+
+Understand the structure, content, and health of your existing data assets before defining any rules or remediation workflows.
+
+🔍 Key Capabilities to Build
+1. Automated Data Profiling Engine
+
+Scan tables, files, and schemas automatically.
+
+Collect statistics for each column:
+
+Data types, min/max, avg length.
+
+% nulls, distinct count, duplicate count.
+
+Value distribution (top 10 values, histograms).
+
+Outlier detection (numeric and categorical).
+
+Detect schema drift and data anomalies between environments.
+
+2. Metadata Inference
+
+Capture inferred schema, primary key candidates, and relationships.
+
+Store results in a metadata repository (e.g., PostgreSQL, Elasticsearch, or internal metadata DB).
+
+3. Profiling Dashboards
+
+Dataset health summary (like 92% complete, 4% duplicates).
+
+Column-level statistics visualization.
+
+Data drift reports (today vs. baseline).
+
+4. Integration Layer
+
+Connectors for all major internal data sources:
+
+SQL Server, Oracle, PostgreSQL, SAP, S3/Blob, APIs, CSVs, etc.
+
+Pluggable framework to add new connectors easily.
+
+5. Sampling & Performance Optimization
+
+For large datasets, use intelligent sampling (e.g., stratified or random).
+
+Optionally use Spark/Flink for distributed profiling at scale.
+
+🧹 Phase 2 — Data Cleaning & Standardization
+🎯 Objective:
+
+Remediate and standardize data across key domains (Customer, Vendor, Product, Asset, etc.) based on profiling insights.
+
+⚙️ Core Capabilities to Build
+1. Data Cleansing Engine
+
+Missing Value Handling
+
+Drop, impute (mean/median/ML-based), or flag records.
+
+Data Standardization
+
+Normalize formats (dates, phone numbers, casing).
+
+Enforce naming conventions, code standards.
+
+Regex & Pattern Correction
+
+Detect and fix invalid entries (emails, ZIP codes, etc.).
+
+Outlier & Anomaly Correction
+
+Flag outliers, optionally auto-correct using ML or thresholds.
+
+2. De-duplication
+
+Build a fuzzy matching service:
+
+Leverage similarity algorithms (Levenshtein, Jaro-Winkler).
+
+Use configurable matching rules.
+
+Optionally apply ML clustering for entity resolution.
+
+3. Reference Data Validation
+
+Validate against internal master/reference data.
+
+Example: country codes, currency codes, product hierarchies.
+
+Map invalid entries to valid values (e.g., "INIDA" → "INDIA").
+
+4. Cleansing Rule Framework
+
+Rules can be authored in YAML/JSON or UI.
+
+Allow versioning and approval workflow.
+
+Optionally, separate soft rules (warning) vs. hard rules (block).
+
+5. Audit & Logging
+
+Every cleansing action logged:
+
+Dataset, record count, change summary.
+
+Before/after snapshots stored for traceability.
+
+6. Quality Scoring
+
+After each cleaning batch, compute:
+
+Completeness score, Accuracy score, etc.
+
+Store scores in a data quality metrics store for tracking improvements over time.
+
+📈 Phase 3 — Validation & Iteration Loop
+
+Once you’ve completed profiling + initial cleaning:
+
+Compare pre- and post-cleaning metrics
+→ Show improvement in completeness, accuracy, and conformity.
+
+Identify critical datasets for continuous monitoring
+→ These will later feed into your data quality automation framework.
+
+Engage domain owners and stewards
+→ Let business teams validate the “clean” data and approve final standards.
+
+
+Phase 1 — Executive summary
+
+Objective: discover and quantify the current health of critical datasets, perform high-impact cleaning to produce trusted curated datasets, and establish a repeatable profiling → cleaning → validation loop that feeds the organization’s DQ baseline metrics and stewardship process.
+
+Primary outcomes (end of Phase 1)
+
+Profiling results and baseline DQ scorecards for prioritized datasets.
+
+Cleaned “curated” copies of priority datasets (with lineage to originals).
+
+A reproducible profiling pipeline and a cleansing engine (MVP).
+
+Issue register + remediation workflow + assigned stewards.
+
+Documentation, acceptance criteria, and next-phase recommendations.
+
+1. Scope & priorities
+
+Start narrow and practical: pick a small set of high-value datasets that impact operations, safety, revenue, or regulatory reporting. Example Shell priority list:
+
+Asset Master (wells, facilities, equipment)
+
+Production measurements (daily/hourly production from SCADA/historians)
+
+Sales/Trading transactions
+
+Vendor / Purchase orders (finance)
+
+Well logs / reservoir metadata
+
+For each dataset, capture:
+
+Source system (SAP, PI/OSIsoft, Historian, RDBMS, CSV exports)
+
+Owner/steward (person + team)
+
+Consumers (analytics, ML, regulatory, downstream apps)
+
+SLA / freshness requirements
+
+Limit Phase 1 to top 3 datasets if resources are limited.
+
+2. People & governance (who does what)
+
+Roles to activate now:
+
+Program Sponsor — Exec sponsor for prioritized datasets.
+
+DQ Lead / Architect — you (or appointed) to define rules & tech.
+
+Data Stewards — domain SMEs (Assets, Production, Finance).
+
+Data Engineers — build connectors, pipelines, run Spark jobs.
+
+Data Quality Analysts — design rules, run profiling, triage issues.
+
+DevOps / Security — deploy infra, handle credentials.
+
+Set a RACI for every dataset: who is Responsible, Accountable, Consulted, and Informed.
+
+3. High-level approach & workflow
+
+Discovery & onboarding — catalog dataset, get access, sample.
+
+Profiling (automated) — column stats, distributions, nulls, uniques, patterns, PK candidates, referential checks.
+
+Rule definition — business + technical rules prioritized by impact.
+
+Cleansing — deterministic fixes, standardization, deduplication and enrichment where safe.
+
+Validation — re-profile and compare pre/post metrics.
+
+Publish curated dataset & baseline metrics — store in curated zone, attach DQ score.
+
+Remediation/longer fixes — create tickets for systemic fixes at source.
+
+4. Technical design: components (minimum viable)
+
+Connectors: JDBC, ODBC, SFTP, API clients, historian connectors (PI connectors).
+
+Profiling engine: Spark jobs (PySpark) or PySpark + Deequ/Great Expectations customization. If small scale, Pandas can be used for quick wins.
+
+Storage:
+
+Raw zone: immutable copy of source (S3/Blob or on-prem HDFS).
+
+Profile store: Postgres/TimescaleDB for metrics.
+
+Curated zone: cleaned dataset (Delta Lake / Parquet / RDBMS schema).
+
+Orchestration: Airflow (DAGs for profiling → cleaning → validation).
+
+Dashboards: Grafana/Superset or PowerBI for scorecards.
+
+Issue tracker: ServiceNow/Jira integration for remediation tickets.
+
+Audit logs: ELK or centralized logs for DQ runs.
+
+5. Detailed profiling methodology
+
+For each dataset/table, compute and store:
+
+Column-level:
+
+data_type_in_source (inferred)
+
+total_rows
+
+null_count, null_pct = null_count / total_rows * 100
+
+distinct_count, distinct_pct = distinct_count / total_rows * 100
+
+top_10_values (value, count)
+
+min/max/mean/std for numeric
+
+min/max/avg length for strings
+
+pattern stats (regex matching % e.g., email format)
+
+invalid_count for domain checks (e.g., invalid country code)
+
+outlier_count (IQR or z-score based)
+
+suggested primary_key_candidates (columns with distinct_count == total_rows)
+
+Table-level:
+
+completeness_score, accuracy_score, uniqueness_score, timeliness_score (see scoring model below)
+
+schema drift (compare current schema to baseline: added/dropped columns)
+
+record-level anomalies (approximate % anomalous rows)
+
+Storage schema for profiling results (example simplified):
+
+dq_profile_column (
+  dataset_id,
+  column_name,
+  run_id,
+  run_ts,
+  total_rows,
+  null_count,
+  distinct_count,
+  top_values JSON,
+  min_value,
+  max_value,
+  avg_length,
+  pattern_match_pct,
+  inferred_type
+)
+
+
+Sampling strategy:
+
+For huge tables, use stratified sampling by logical partitions (date, region, asset) to preserve distribution.
+
+Sampling sizes: min(1M rows, 5% of table) when possible. For numeric distributions, 100k rows is often enough to surface anomalies. For categorical rare values, sample upward or do targeted scans for low-frequency values.
+
+Use reservoir or hashed sampling to ensure reproducibility.
+
+Outlier detection:
+
+Numeric: IQR method and z-score threshold (|z| > 4) as initial rule.
+
+Timestamp drift: check gaps or latency vs expected ingestion times.
+
+Example SQL snippet to compute basic column stats (for RDBMS):
+
+SELECT
+  COUNT(*) AS total_rows,
+  COUNT(col) AS non_nulls,
+  SUM(CASE WHEN col IS NULL THEN 1 ELSE 0 END) AS null_count,
+  COUNT(DISTINCT col) AS distinct_count,
+  MIN(col) AS min_val,
+  MAX(col) AS max_val
+FROM schema.table;
+
+
+Example PySpark snippet for column profiling (pseudocode):
+
+df = spark.read.table("raw.asset_master")
+total = df.count()
+col = "asset_id"
+nulls = df.filter(F.col(col).isNull()).count()
+distinct = df.select(col).distinct().count()
+top_values = df.groupBy(col).count().orderBy(F.desc("count")).limit(10).collect()
+
+6. DQ scoring model (how to compute baseline)
+
+Create a composite dataset score from weighted dimension scores. Example (weights are an example — tune with business):
+
+Dimension weights:
+
+Completeness 30%
+
+Validity/Conformity 20%
+
+Uniqueness 15%
+
+Accuracy (where verifiable) 20%
+
+Timeliness 10%
+
+Integrity (ref integrity) 5%
+
+Compute per-dimension:
+
+Completeness = (1 - null_pct) * 100
+
+Uniqueness = (distinct_count / total_rows) * 100
+
+Validity = (1 - invalid_pct) * 100
+
+Dataset Score = sum(weight_i * score_i) / sum(weights)
+
+Example:
+
+completeness = 90, validity = 95, uniqueness = 98, accuracy=85, timeliness=92, integrity=100
+
+dataset_score = 0.390 + 0.295 + 0.1598 + 0.285 + 0.192 + 0.05100 = compute =>
+0.390 =27, 0.295=19, 0.1598=14.7, 0.285=17, 0.192=9.2, 0.05100=5 => total=91.9 → round to 92
+
+Store baseline and keep historical run results.
+
+7. Rule definition: categories & priority
+
+Start with high-impact deterministic rules — they are easier to implement and lower risk.
+
+Rule categories (examples and priority):
+
+Structural rules (High priority)
+
+Required columns exist, column data types match schema.
+
+Completeness rules (High)
+
+Mandatory fields not null (asset_id, timestamp, production_value).
+
+Range & domain rules (High)
+
+production_value >= 0 and <= equipment_max_capacity.
+
+Format rules (Medium)
+
+ISO8601 timestamp format, country codes are ISO3166.
+
+Uniqueness rules (High)
+
+Primary key uniqueness for transactional tables.
+
+Referential integrity (High)
+
+asset.asset_id references asset_master.asset_id.
+
+Business logic rules (Medium/High)
+
+Production rate change > X% flagged (anomaly).
+
+Timeliness rules (High for operational data)
+
+Data must arrive within SLA (e.g., ingestion delay < 2 hours).
+
+Write rules in a machine-executable format (YAML or Great Expectations suites). Example GE expectation (YAML style):
+
+expectations:
+- expectation_type: expect_column_values_to_not_be_null
+  kwargs:
+    column: asset_id
+- expectation_type: expect_column_values_to_be_between
+  kwargs:
+    column: production_value
+    min_value: 0
+    max_value: 100000
+
+8. Cleaning & remediation patterns (safe, auditable)
+
+Strategy: do deterministic, reversible transformations; log everything. Never overwrite raw data.
+
+Normalization / standardization
+
+Standardize units (barrels/day → m3/day) with documented conversions.
+
+Normalize casing for codes and strip whitespace.
+
+Canonicalization (reference mapping)
+
+Map mis-typed country/product codes to canonical values using lookup tables.
+
+Missing values
+
+If mandatory and imputable: use business rules (last known value, forward fill for time series) or ML only after conservative validation.
+
+Otherwise, flag and create remediation ticket.
+
+Deduplication / Entity Resolution
+
+Deterministic rules first (exact matches on PK).
+
+Fuzzy matching for duplicates: Jaro-Winkler or Levenshtein on name/address with thresholds tuned by steward.
+
+Keep merge audit (before, after, merge keys, steward id).
+
+Outlier handling
+
+Flag vs auto-correct. For safety/financial data, only flag. For clearly impossible values (e.g., negative volumes), consider correction via rule.
+
+Enrichment
+
+Use trusted reference data to enrich missing attributes (e.g., geo codes).
+
+Audit: Every change must include run_id, user, transform applied, reason, and optionally before/after sample rows. Keep before snapshots for a rolling retention period.
+
+Example: standardize date field (PySpark)
+
+from pyspark.sql.functions import to_timestamp, col
+df2 = df.withColumn("ts", to_timestamp(col("raw_ts"), "yyyy-MM-dd'T'HH:mm:ss"))
+
+9. Validation & acceptance criteria (what “done” looks like)
+
+For each prioritized dataset:
+
+Profiling run completed and stored (column-level and table-level).
+
+A minimum of 3 high-priority rules implemented and passing on curated dataset.
+
+Curated dataset generated (partitioned, stored) with lineage to raw source.
+
+DQ score improved by X points (define target with stakeholders; e.g., +8–15 points) or achieves absolute target (>=85) for top dataset.
+
+All changes fully auditable; remediation pipeline created and at least 2 tickets resolved by business stewards.
+
+Documentation and steward signoff.
+
+10. Deliverables & artifacts to produce
+
+Dataset inventory + scope doc.
+
+Profiling engine code/DAGs & config (Airflow DAGs).
+
+Profiling reports & dashboards.
+
+Rule repository (YAML/Great Expectations suites).
+
+Cleansing scripts (PySpark/Python) and version control.
+
+Curated datasets in target storage + schema.
+
+DQ metrics store with baseline scores.
+
+Remediation workflow integrated with ticketing.
+
+Runbook and operator documentation.
+
+11. Security, privacy & compliance during Phase 1
+
+Never move raw PII out of approved environments. Use masked views for analysts where needed.
+
+Use corporate SSO for access; role-based access for curated zone.
+
+Store credentials in secret manager; restrict who can run cleansing that exposes raw PII.
+
+All DQ runs must log who executed them and what transformations were applied.
+
+12. Implementation plan & 60–90 day milestone roadmap
+
+Assumes a small cross-functional team: 1 DQ lead, 2 data engineers, 1 steward per domain, 1 analyst.
+
+Weeks 0–2: Kickoff & discovery
+
+Finalize dataset scope and stakeholders.
+
+Access arranged to sources; sample extracts validated.
+
+Select infra (Spark cluster, storage, Airflow).
+
+Weeks 2–4: Profiling MVP
+
+Build connectors and run initial profiling on dataset #1.
+
+Store column-level results in profiling DB.
+
+Produce first profiling dashboard and baseline score.
+
+Weeks 4–7: Rules & cleansing MVP
+
+Define top 8–12 rules for dataset #1 with steward.
+
+Implement cleaning scripts and Airflow DAGs (profile → clean → validate).
+
+Produce curated dataset; validate with stewards.
+
+Weeks 7–10: Expand & iterate
+
+Run same pipeline for dataset #2.
+
+Implement deduplication and entity resolution for asset master.
+
+Build remediation tickets and resolve first 10 high-priority issues.
+
+Weeks 10–12: Stabilize & document
+
+Harden pipelines (retries, monitoring, logging).
+
+Final baseline report, steward signoffs, and handover for Phase 2.
+
+13. Monitoring & alerts (Phase 1 minimal)
+
+Nightly profiling run for curated datasets.
+
+Alerts:
+
+DQ rule failures > threshold (e.g., >1% of rows) → email to steward + create ticket.
+
+Schema change detection → immediate alert to data engineering.
+
+Dashboards: baseline vs latest, top 10 issues, trending DQ score.
+
+14. Example rule implementation options
+
+Great Expectations: expectation suites run as part of Airflow.
+
+Deequ (Spark): for large tables, run Deequ checks in Spark jobs.
+
+Custom PySpark: for complex business logic (join validations with master tables).
+
+Great Expectations example (Python snippet, pseudocode):
+
+from great_expectations.dataset.sparkdf_dataset import SparkDFDataset
+df = spark.read.parquet("raw/production")
+ge_df = SparkDFDataset(df)
+ge_df.expect_column_values_to_not_be_null("asset_id")
+ge_df.expect_column_values_to_be_between("production", min_value=0, max_value=100000)
+result = ge_df.validate()
+
+15. Common pitfalls & mitigations
+
+Pitfall: trying to fix everything at once → Mitigation: pick small set and iterate.
+
+Pitfall: overwriting raw data → Mitigation: immutable raw zone + curated copies.
+
+Pitfall: business disengagement → Mitigation: early steward signoffs, show quick wins.
+
+Pitfall: overuse of ML for cleaning early → Mitigation: start with deterministic rules; ML only after stable baselines.
+
+Pitfall: missing lineage & traceability → Mitigation: record run_ids, inputs, outputs, and rule versions for every run.
+
+16. KPIs & success metrics for Phase 1
+
+% of prioritized datasets profiled (target 100% of chosen scope).
+
+% of prioritized datasets with curated copy produced (target 80–100%).
+
+Mean DQ score improvement for pilot datasets (target +8–15 points).
+
+Number of high-impact data issues resolved by stewards (target ≥ 10).
+
+Time to detect a DQ regression (target <24 hours after deployment).
+
+Number of rules authored and automated (target ≥ 10 rules across datasets).
+
+17. Templates (quick reference)
+
+A. Profiling run metadata:
+
+run_id, dataset_id, run_ts, rows_scanned, sample_method, sample_size, engine_version
+
+
+B. Issue ticket template:
+
+Dataset, Column, Issue Type, Description, Row sample (up to 10), Impact, Suggested Fix, Owner, Priority
+
+18. Next steps after Phase 1 (short)
+
+Evaluate tooling fit: Great Expectations vs Deequ for scale.
+
+Instrument lineage (OpenLineage) and metadata catalog on profiles.
+
+Move to Phase 2: central rules engine, real-time checks, and orchestrated alerts.
